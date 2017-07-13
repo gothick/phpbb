@@ -24,3 +24,6 @@
 /tests/vendor
 /vagrant/phpbb-install-config.yml
 .vagrant
+
+# macOS
+.DS_Store
