@@ -38,7 +38,7 @@
 	</dl>
 	<dl>
 		<dt><label>{L_DISPLAY_POSTS}{L_COLON}</label></dt>
-		<dd>{S_SELECT_SORT_DAYS}&nbsp;&nbsp;<label>{L_SORT_BY} {S_SELECT_SORT_KEY}</label><label>{S_SELECT_SORT_DIR}</label> <input type="submit" name="sort" value="{L_GO}" class="button2" /></dd>
+		<dd>{S_SELECT_SORT_DAYS}&nbsp;&nbsp;<label>{L_SORT_BY} {S_SELECT_SORT_KEY}</label><label>{S_SELECT_SORT_DIR}</label> <input type="submit" name="sort" value="{L_GO}" class="button1 button button-form-bold" /></dd>
 	</dl>
 	</fieldset>
 
@@ -94,6 +94,7 @@
 
 	<div id="topicreview" class="topicreview">
 		<!-- BEGIN postrow -->
+		<!-- EVENT mcp_topic_postrow_post_before -->
 		<div class="post <!-- IF postrow.S_ROW_COUNT is odd -->bg1<!-- ELSE -->bg2<!-- ENDIF -->">
 			<div class="inner">
 
@@ -119,7 +120,7 @@
 				<p class="author">
 					<a href="#pr{postrow.POST_ID}" title="{postrow.MINI_POST}">
 						<i class="icon fa-file fa-fw icon-lightgray icon-tiny" aria-hidden="true"></i><span class="sr-only">{postrow.MINI_POST}</span>
-					</a> {L_POSTED} {postrow.POST_DATE} {L_POST_BY_AUTHOR} <strong>{postrow.POST_AUTHOR_FULL}</strong><!-- IF postrow.U_MCP_DETAILS --> [ <a href="{postrow.U_MCP_DETAILS}">{L_POST_DETAILS}</a> ]<!-- ENDIF -->
+					</a> {L_POSTED} {postrow.POST_DATE} {L_POST_BY_AUTHOR} {% EVENT mcp_topic_post_author_full_prepend %}<strong>{postrow.POST_AUTHOR_FULL}</strong>{% EVENT mcp_topic_post_author_full_append %}<!-- IF postrow.U_MCP_DETAILS --> [ <a href="{postrow.U_MCP_DETAILS}">{L_POST_DETAILS}</a> ]<!-- ENDIF -->
 				</p>
 				<!-- EVENT mcp_topic_postrow_post_details_after -->
 
@@ -143,6 +144,8 @@
 
 				<div class="content" id="message_{postrow.POST_ID}">{postrow.MESSAGE}</div>
 
+				<!-- EVENT mcp_topic_postrow_attachments_before -->
+
 				<!-- IF postrow.S_HAS_ATTACHMENTS -->
 					<dl class="attachbox">
 						<dt>{L_ATTACHMENTS}</dt>
@@ -151,6 +154,8 @@
 						<!-- END attachment -->
 					</dl>
 				<!-- ENDIF -->
+
+				<!-- EVENT mcp_topic_postrow_attachments_after -->
 
 			</div>
 
@@ -186,7 +191,7 @@
 		<!-- IF S_CAN_SPLIT --><option value="split_all"<!-- IF S_SPLIT_VIEW --> selected="selected"<!-- ENDIF -->>{L_SPLIT_POSTS}</option><option value="split_beyond">{L_SPLIT_AFTER}</option><!-- ENDIF -->
 		<!-- IF S_CAN_SYNC --><option value="resync">{L_RESYNC}</option><!-- ENDIF -->
 	</select>&nbsp;
-	<input class="button1" type="submit" name="mcp_topic_submit" value="{L_SUBMIT}" />
+	<input class="button1 button button-form" type="submit" name="mcp_topic_submit" value="{L_SUBMIT}" />
 	<div><a href="#" onclick="marklist('mcp', 'post', true); return false;">{L_MARK_ALL}</a> :: <a href="#" onclick="marklist('mcp', 'post', false); return false;">{L_UNMARK_ALL}</a></div>
 {S_HIDDEN_FIELDS}
 {S_FORM_TOKEN}

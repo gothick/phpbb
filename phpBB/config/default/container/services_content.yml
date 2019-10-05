@@ -35,6 +35,7 @@ services:
             - '@config_text'
             - '@dbal.conn'
             - '@user'
+            - '@dispatcher'
             - '%core.root_path%'
             - '%core.php_ext%'
 
@@ -68,5 +69,3 @@ services:
 
     viewonline_helper:
         class: phpbb\viewonline_helper
-        arguments:
-            - '@filesystem'

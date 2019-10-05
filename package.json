@@ -1,0 +1,65 @@
+{
+	"name": "phpbb",
+	"version": "3.3.0-dev",
+	"description": "phpBB Forum Software application",
+	"main": " ",
+	"directories": {
+		"doc": "docs"
+	},
+	"xo": {
+		"rules": {
+			"quote-props": [
+				"error",
+				"always"
+			]
+		},
+		"env": {
+			"es6": true,
+			"browser": true,
+			"node": true,
+			"jquery": true
+		}
+	},
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/phpbb/phpbb.git"
+	},
+	"browserslist": [
+		"> 1%",
+		"last 2 versions"
+	],
+	"keywords": [
+		"phpBB",
+		"phpbb",
+		"forum",
+		"php",
+		"software",
+		"community"
+	],
+	"author": "",
+	"license": "GPL-2.0",
+	"bugs": {
+		"url": "https://tracker.phpbb.com"
+	},
+	"homepage": "https://www.phpbb.com",
+	"devDependencies": {
+		"cssnano": "^4.1.10",
+		"del": "^5.1.0",
+		"gulp": "^4.0.2",
+		"gulp-autoprefixer": "^7.0.0",
+		"gulp-postcss": "^8.0.0",
+		"gulp-rename": "^1.4.0",
+		"gulp-sass": "^4.0.2",
+		"gulp-sourcemaps": "^2.6.5",
+		"postcss-import": "^12.0.1",
+		"postcss-pxtorem": "^4.0.1",
+		"postcss-sorting": "^5.0.1",
+		"stylelint": "^11.0.0",
+		"stylelint-order": "^3.1.1",
+		"xo": "^0.25.3"
+	},
+	"dependencies": {}
+}

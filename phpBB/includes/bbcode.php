@@ -35,9 +35,18 @@ class bbcode
 
 	/**
 	* Constructor
-	* Init bbcode cache entries if bitfield is specified
 	*/
-	function bbcode($bitfield = '')
+	function __construct($bitfield = '')
+	{
+		$this->bbcode_set_bitfield($bitfield);
+	}
+
+	/**
+	* Init bbcode cache entries if bitfield is specified
+	*
+	* @param	string	$bbcode_bitfield	The bbcode bitfield
+	*/
+	function bbcode_set_bitfield($bitfield = '')
 	{
 		if ($bitfield)
 		{
@@ -94,13 +103,13 @@ class bbcode
 						${$type}['replace'][] = $replace;
 					}
 
-					if (sizeof($str['search']))
+					if (count($str['search']))
 					{
 						$message = str_replace($str['search'], $str['replace'], $message);
 						$str = array('search' => array(), 'replace' => array());
 					}
 
-					if (sizeof($preg['search']))
+					if (count($preg['search']))
 					{
 						// we need to turn the entities back into their original form to allow the
 						// search patterns to work properly
@@ -156,9 +165,7 @@ class bbcode
 					$phpbb_container->get('path_helper'),
 					$phpbb_container->getParameter('core.cache_dir'),
 					$phpbb_container->get('ext.manager'),
-					new \phpbb\template\twig\loader(
-						$phpbb_filesystem
-					)
+					new \phpbb\template\twig\loader()
 				),
 				$phpbb_container->getParameter('core.cache_dir'),
 				$phpbb_container->get('user'),
@@ -191,7 +198,7 @@ class bbcode
 			}
 		}
 
-		if (sizeof($sql))
+		if (count($sql))
 		{
 			global $db;
 

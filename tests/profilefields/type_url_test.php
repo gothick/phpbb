@@ -11,6 +11,10 @@
 *
 */
 
+require_once dirname(__FILE__) . '/../../phpBB/includes/functions.php';
+require_once dirname(__FILE__) . '/../../phpBB/includes/functions_content.php';
+require_once dirname(__FILE__) . '/../../phpBB/includes/utf/utf_tools.php';
+
 class phpbb_profilefield_type_url_test extends phpbb_test_case
 {
 	protected $cp;
@@ -22,11 +26,13 @@ class phpbb_profilefield_type_url_test extends phpbb_test_case
 	* @access public
 	* @return null
 	*/
-	public function setUp()
+	public function setUp(): void
 	{
-		global $phpbb_root_path, $phpEx;
+		global $config, $request, $user, $cache, $phpbb_root_path, $phpEx;
 
-		$user = $this->getMock('\phpbb\user', array(), array(
+		$config = new \phpbb\config\config([]);
+		$cache = new phpbb_mock_cache;
+		$user = $this->createMock('\phpbb\user', array(), array(
 			new \phpbb\language\language(new \phpbb\language\language_file_loader($phpbb_root_path, $phpEx)),
 			'\phpbb\datetime'
 		));
@@ -34,8 +40,8 @@ class phpbb_profilefield_type_url_test extends phpbb_test_case
 			->method('lang')
 			->will($this->returnCallback(array($this, 'return_callback_implode')));
 
-		$request = $this->getMock('\phpbb\request\request');
-		$template = $this->getMock('\phpbb\template\template');
+		$request = $this->createMock('\phpbb\request\request');
+		$template = $this->createMock('\phpbb\template\template');
 
 		$this->cp = new \phpbb\profilefields\type\type_url(
 			$request,
@@ -88,6 +94,19 @@ class phpbb_profilefield_type_url_test extends phpbb_test_case
 			),
 			array(
 				'http://example.com/index.html/test/path?document[]=DocType%20test&document[]=AnotherDoc',
+				array(),
+				'FIELD_INVALID_URL-field',
+				'Field should reject invalid URL having multi value parameters',
+			),
+			// Not allowed schemes
+			array(
+				'ftp://example.com/',
+				array(),
+				'FIELD_INVALID_URL-field',
+				'Field should reject invalid URL having multi value parameters',
+			),
+			array(
+				'javascript://alert.com',
 				array(),
 				'FIELD_INVALID_URL-field',
 				'Field should reject invalid URL having multi value parameters',
@@ -163,6 +182,55 @@ class phpbb_profilefield_type_url_test extends phpbb_test_case
 				'Field should return correct raw value',
 			),
 		);
+	}
+
+	public function profile_value_data()
+	{
+		return array(
+			array(
+				'http://foobar.com',
+				array('field_show_novalue' => true),
+				'<!-- l --><a class="postlink-local" href="http://foobar.com">foobar.com</a><!-- l -->',
+				'Field should output the given value',
+			),
+			array(
+				'http://foobar.com',
+				array('field_show_novalue' => false),
+				'<!-- l --><a class="postlink-local" href="http://foobar.com">foobar.com</a><!-- l -->',
+				'Field should output the given value',
+			),
+			array(
+				'test',
+				array('field_show_novalue' => true),
+				null,
+				'Field should output nothing for empty value',
+			),
+			array(
+				'test',
+				array('field_show_novalue' => false),
+				null,
+				'Field should simply output null for empty value',
+			),
+			array(
+				'javascript://foobar.com',
+				array('field_show_novalue' => true),
+				null,
+				'Field should output nothing for empty value',
+			),
+		);
+	}
+
+
+	/**
+	 * @dataProvider profile_value_data
+	 */
+	public function test_get_profile_value($value, $field_options, $expected, $description)
+	{
+		$field_options = array_merge($this->field_options, $field_options);
+
+		$result = $this->cp->get_profile_value($value, $field_options);
+
+		$this->assertSame($expected, $result, $description);
 	}
 
 	/**

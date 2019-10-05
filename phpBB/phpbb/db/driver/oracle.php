@@ -136,7 +136,7 @@ class oracle extends \phpbb\db\driver\driver
 	*/
 	function _rewrite_col_compare($args)
 	{
-		if (sizeof($args) == 4)
+		if (count($args) == 4)
 		{
 			if ($args[2] == '=')
 			{
@@ -246,12 +246,11 @@ class oracle extends \phpbb\db\driver\driver
 		{
 			global $cache;
 
-			// EXPLAIN only in extra debug mode
-			if (defined('DEBUG'))
+			if ($this->debug_sql_explain)
 			{
 				$this->sql_report('start', $query);
 			}
-			else if (defined('PHPBB_DISPLAY_LOAD_TIME'))
+			else if ($this->debug_load_time)
 			{
 				$this->curtime = microtime(true);
 			}
@@ -290,7 +289,7 @@ class oracle extends \phpbb\db\driver\driver
 						and/or need the db restore script, uncomment this.
 
 
-							if (sizeof($cols) !== sizeof($vals))
+							if (count($cols) !== count($vals))
 							{
 								// Try to replace some common data we know is from our restore script or from other sources
 								$regs[3] = str_replace("'||chr(47)||'", '/', $regs[3]);
@@ -332,7 +331,7 @@ class oracle extends \phpbb\db\driver\driver
 								if ($string)
 								{
 									// New value if cols != value
-									$vals[(sizeof($cols) !== sizeof($vals)) ? $i : $i - 1] .= $string;
+									$vals[(count($cols) !== count($vals)) ? $i : $i - 1] .= $string;
 								}
 
 								$vals = array(0 => $vals);
@@ -428,11 +427,11 @@ class oracle extends \phpbb\db\driver\driver
 					}
 				}
 
-				if (defined('DEBUG'))
+				if ($this->debug_sql_explain)
 				{
 					$this->sql_report('stop', $query);
 				}
-				else if (defined('PHPBB_DISPLAY_LOAD_TIME'))
+				else if ($this->debug_load_time)
 				{
 					$this->sql_time += microtime(true) - $this->curtime;
 				}
@@ -452,7 +451,7 @@ class oracle extends \phpbb\db\driver\driver
 					$this->open_queries[(int) $this->query_result] = $this->query_result;
 				}
 			}
-			else if (defined('DEBUG'))
+			else if ($this->debug_sql_explain)
 			{
 				$this->sql_report('fromcache', $query);
 			}

@@ -66,8 +66,7 @@ class phpbb_security_redirect_test extends phpbb_security_test_base
 				new \phpbb\symfony_request(
 					new phpbb_mock_request()
 				),
-				new \phpbb\filesystem\filesystem(),
-				$this->getMock('\phpbb\request\request'),
+				$this->createMock('\phpbb\request\request'),
 				$this->phpbb_root_path,
 				'php'
 			);
@@ -75,7 +74,7 @@ class phpbb_security_redirect_test extends phpbb_security_test_base
 		return $this->path_helper;
 	}
 
-	protected function setUp()
+	protected function setUp(): void
 	{
 		global $phpbb_dispatcher;
 
@@ -109,7 +108,7 @@ class phpbb_security_redirect_test extends phpbb_security_test_base
 
 		if ($expected_error !== false)
 		{
-			$this->setExpectedTriggerError(E_USER_ERROR, $user->lang[$expected_error]);
+			$this->setExpectedTriggerError(E_USER_WARNING, $user->lang[$expected_error]);
 		}
 
 		$result = redirect($test, true, $disable_cd_check);

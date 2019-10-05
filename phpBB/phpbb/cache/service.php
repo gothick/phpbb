@@ -214,7 +214,6 @@ class service
 
 				$extensions[$extension] = array(
 					'display_cat'	=> (int) $row['cat_id'],
-					'download_mode'	=> (int) $row['download_mode'],
 					'upload_icon'	=> trim($row['upload_icon']),
 					'max_filesize'	=> (int) $row['max_filesize'],
 					'allow_group'	=> $row['allow_group'],
@@ -227,7 +226,7 @@ class service
 				// Store allowed extensions forum wise
 				if ($row['allow_group'])
 				{
-					$extensions['_allowed_post'][$extension] = (!sizeof($allowed_forums)) ? 0 : $allowed_forums;
+					$extensions['_allowed_post'][$extension] = (!count($allowed_forums)) ? 0 : $allowed_forums;
 				}
 
 				if ($row['allow_in_pm'])

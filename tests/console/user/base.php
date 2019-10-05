@@ -20,6 +20,7 @@ abstract class phpbb_console_user_base extends phpbb_database_test_case
 	protected $log;
 	protected $passwords_manager;
 	protected $command_name;
+	/** @var Symfony\Component\Console\Helper\QuestionHelper */
 	protected $question;
 	protected $user_loader;
 	protected $phpbb_root_path;
@@ -30,7 +31,7 @@ abstract class phpbb_console_user_base extends phpbb_database_test_case
 		return $this->createXMLDataSet(dirname(__FILE__) . '/fixtures/config.xml');
 	}
 
-	public function setUp()
+	public function setUp(): void
 	{
 		global $auth, $db, $cache, $config, $user, $phpbb_dispatcher, $phpbb_container, $phpbb_root_path, $phpEx;
 
@@ -39,7 +40,7 @@ abstract class phpbb_console_user_base extends phpbb_database_test_case
 		$phpbb_container->set('cache.driver', new phpbb_mock_cache());
 		$phpbb_container->set('notification_manager', new phpbb_mock_notification_manager());
 
-		$auth = $this->getMock('\phpbb\auth\auth');
+		$auth = $this->createMock('\phpbb\auth\auth');
 
 		$cache = $phpbb_container->get('cache.driver');
 
@@ -62,7 +63,7 @@ abstract class phpbb_console_user_base extends phpbb_database_test_case
 		$this->language->expects($this->any())
 			->method('lang')
 			->will($this->returnArgument(0));
-		$user = $this->user = $this->getMock('\phpbb\user', array(), array(
+		$user = $this->user = $this->createMock('\phpbb\user', array(), array(
 			$this->language,
 			'\phpbb\datetime'
 		));
@@ -94,6 +95,11 @@ abstract class phpbb_console_user_base extends phpbb_database_test_case
 			'auth.provider_collection',
 			$provider_collection
 		);
+		$phpbb_container->setParameter('tables.auth_provider_oauth_token_storage', 'phpbb_oauth_tokens');
+		$phpbb_container->setParameter('tables.auth_provider_oauth_states', 'phpbb_oauth_states');
+		$phpbb_container->setParameter('tables.auth_provider_oauth_account_assoc', 'phpbb_oauth_accounts');
+
+		$phpbb_container->setParameter('tables.user_notifications', 'phpbb_user_notifications');
 
 		parent::setUp();
 	}

@@ -20,6 +20,13 @@ var phpbbAlertTimer = null;
 
 phpbb.isTouch = (window && typeof window.ontouchstart !== 'undefined');
 
+// Add ajax pre-filter to prevent cross-domain script execution
+$.ajaxPrefilter(function(s) {
+	if (s.crossDomain) {
+		s.contents.script = false;
+	}
+});
+
 /**
  * Display a loading screen
  *
@@ -27,11 +34,7 @@ phpbb.isTouch = (window && typeof window.ontouchstart !== 'undefined');
  */
 phpbb.loadingIndicator = function() {
 	if (!$loadingIndicator) {
-		$loadingIndicator = $('<div />', { 
-			id: 'loading_indicator', 
-			class: 'loading_indicator', 
-		});
-		$loadingIndicator.appendTo('#page-footer');
+		$loadingIndicator = $('#loading_indicator');
 	}
 
 	if (!$loadingIndicator.is(':visible')) {
@@ -179,7 +182,7 @@ phpbb.alert.close = function($alert, fadedark) {
 phpbb.confirm = function(msg, callback, fadedark) {
 	var $confirmDiv = $('#phpbb_confirm');
 	$confirmDiv.find('.alert_text').html(msg);
-	fadedark = fadedark !== 'undefined' ? fadedark : true;
+	fadedark = typeof fadedark !== 'undefined' ? fadedark : true;
 
 	$(document).on('keydown.phpbb.alert', function(e) {
 		if (e.keyCode === keymap.ENTER || e.keyCode === keymap.ESC) {
@@ -935,9 +938,9 @@ phpbb.addAjaxCallback('alt_text', function() {
 	$anchor.each(function() {
 		var $this = $(this);
 		altText = $this.attr('data-alt-text');
-		$this.attr('data-alt-text', $this.text());
-		$this.attr('title', $.trim(altText));
-		$this.text(altText);
+		$this.attr('data-alt-text', $.trim($this.text()));
+		$this.attr('title', altText);
+		$this.children('span').text(altText);
 	});
 });
 
@@ -1331,6 +1334,7 @@ phpbb.toggleDropdown = function() {
 			$this.css({
 				marginLeft: 0,
 				left: 0,
+				marginRight: 0,
 				maxWidth: (windowWidth - 4) + 'px'
 			});
 
@@ -1484,7 +1488,7 @@ phpbb.colorPalette = function(dir, width, height) {
 * @param {jQuery} el jQuery object for the palette container.
 */
 phpbb.registerPalette = function(el) {
-	var	orientation	= el.attr('data-orientation'),
+	var	orientation	= el.attr('data-color-palette'),
 		height		= el.attr('data-height'),
 		width		= el.attr('data-width'),
 		target		= el.attr('data-target'),
@@ -1642,7 +1646,51 @@ phpbb.lazyLoadAvatars = function loadAvatars() {
 	});
 };
 
-$(window).load(phpbb.lazyLoadAvatars);
+var recaptchaForm = $('.g-recaptcha').parents('form');
+var submitButton = null;
+var programaticallySubmitted = false;
+
+phpbb.recaptchaOnLoad = function () {
+	// Listen to submit buttons in order to know which one was pressed
+	$('input[type="submit"]').each(function () {
+		$(this).on('click', function () {
+			submitButton = this;
+		});
+	});
+
+	recaptchaForm.on('submit', function (e) {
+		if (!programaticallySubmitted) {
+			grecaptcha.execute();
+			e.preventDefault();
+		}
+	});
+}
+
+phpbb.recaptchaOnSubmit = function () {
+	programaticallySubmitted = true;
+	// If concrete button was clicked (e.g. preview instead of submit),
+	// let's trigger the same action
+	if (submitButton) {
+		submitButton.click();
+	} else {
+		// Rename input[name="submit"] so that we can submit the form
+		if (typeof recaptchaForm.submit !== 'function') {
+			recaptchaForm.submit.name = 'submit_btn';
+		}
+		recaptchaForm.submit();
+	}
+}
+
+// reCAPTCHA doesn't accept callback functions nested inside objects
+// so we need to make this helper functions here
+window.phpbbRecaptchaOnLoad = function() {
+	phpbb.recaptchaOnLoad();
+}
+window.phpbbRecaptchaOnSubmit = function() {
+	phpbb.recaptchaOnSubmit();
+}
+
+$(window).on('load', phpbb.lazyLoadAvatars);
 
 /**
 * Apply code editor to all textarea elements with data-bbcode attribute
@@ -1654,7 +1702,7 @@ $(function() {
 
 	phpbb.registerPageDropdowns();
 
-	$('#color_palette_placeholder').each(function() {
+	$('[data-color-palette]').each(function() {
 		phpbb.registerPalette($(this));
 	});
 

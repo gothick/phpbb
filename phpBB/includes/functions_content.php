@@ -336,7 +336,7 @@ function get_context($text, $words, $length = 400)
 	$text = str_replace($entities, $characters, $text);
 
 	$word_indizes = array();
-	if (sizeof($words))
+	if (count($words))
 	{
 		$match = '';
 		// find the starting indizes of all words
@@ -361,12 +361,12 @@ function get_context($text, $words, $length = 400)
 		}
 		unset($match);
 
-		if (sizeof($word_indizes))
+		if (count($word_indizes))
 		{
 			$word_indizes = array_unique($word_indizes);
 			sort($word_indizes);
 
-			$wordnum = sizeof($word_indizes);
+			$wordnum = count($word_indizes);
 			// number of characters on the right and left side of each word
 			$sequence_length = (int) ($length / (2 * $wordnum)) - 2;
 			$final_text = '';
@@ -434,7 +434,7 @@ function get_context($text, $words, $length = 400)
 		}
 	}
 
-	if (!sizeof($words) || !sizeof($word_indizes))
+	if (!count($words) || !count($word_indizes))
 	{
 		return str_replace($characters, $entities, ((utf8_strlen($text) >= $length + 3) ? utf8_substr($text, 0, $length) . '...' : $text));
 	}
@@ -627,7 +627,7 @@ function generate_text_for_display($text, $uid, $bitfield, $flags, $censor_text 
 			}
 			else
 			{
-				$bbcode->bbcode($bitfield);
+				$bbcode->bbcode_set_bitfield($bitfield);
 			}
 
 			$bbcode->bbcode_second_pass($text, $uid);
@@ -1021,7 +1021,7 @@ function censor_text($text)
 		}
 	}
 
-	if (sizeof($censors))
+	if (count($censors))
 	{
 		return preg_replace($censors['match'], $censors['replace'], $text);
 	}
@@ -1079,13 +1079,16 @@ function smiley_text($text, $force_option = false)
 */
 function parse_attachments($forum_id, &$message, &$attachments, &$update_count_ary, $preview = false)
 {
-	if (!sizeof($attachments))
+	if (!count($attachments))
 	{
 		return;
 	}
 
 	global $template, $cache, $user, $phpbb_dispatcher;
 	global $extensions, $config, $phpbb_root_path, $phpEx;
+	global $phpbb_container;
+
+	$storage_attachment = $phpbb_container->get('storage.attachment');
 
 	//
 	$compiled_attachments = array();
@@ -1114,7 +1117,7 @@ function parse_attachments($forum_id, &$message, &$attachments, &$update_count_a
 	}
 
 	// Grab attachments (security precaution)
-	if (sizeof($attach_ids))
+	if (count($attach_ids))
 	{
 		global $db;
 
@@ -1151,7 +1154,7 @@ function parse_attachments($forum_id, &$message, &$attachments, &$update_count_a
 
 	foreach ($attachments as $attachment)
 	{
-		if (!sizeof($attachment))
+		if (!count($attachment))
 		{
 			continue;
 		}
@@ -1163,7 +1166,7 @@ function parse_attachments($forum_id, &$message, &$attachments, &$update_count_a
 
 		// Some basics...
 		$attachment['extension'] = strtolower(trim($attachment['extension']));
-		$filename = $phpbb_root_path . $config['upload_path'] . '/' . utf8_basename($attachment['physical_filename']);
+		$filename = utf8_basename($attachment['physical_filename']);
 
 		$upload_icon = '';
 
@@ -1219,16 +1222,15 @@ function parse_attachments($forum_id, &$message, &$attachments, &$update_count_a
 					{
 						if ($config['img_link_width'] || $config['img_link_height'])
 						{
-							$dimension = @getimagesize($filename);
+							try
+							{
+								$file_info = $storage_attachment->file_info($filename);
 
-							// If the dimensions could not be determined or the image being 0x0 we display it as a link for safety purposes
-							if ($dimension === false || empty($dimension[0]) || empty($dimension[1]))
+								$display_cat = ($file_info->image_width <= $config['img_link_width'] && $file_info->image_height <= $config['img_link_height']) ? ATTACHMENT_CATEGORY_IMAGE : ATTACHMENT_CATEGORY_NONE;
+							}
+							catch (\Exception $e)
 							{
 								$display_cat = ATTACHMENT_CATEGORY_NONE;
-							}
-							else
-							{
-								$display_cat = ($dimension[0] <= $config['img_link_width'] && $dimension[1] <= $config['img_link_height']) ? ATTACHMENT_CATEGORY_IMAGE : ATTACHMENT_CATEGORY_NONE;
 							}
 						}
 					}
@@ -1241,11 +1243,6 @@ function parse_attachments($forum_id, &$message, &$attachments, &$update_count_a
 
 			// Make some descisions based on user options being set.
 			if (($display_cat == ATTACHMENT_CATEGORY_IMAGE || $display_cat == ATTACHMENT_CATEGORY_THUMB) && !$user->optionget('viewimg'))
-			{
-				$display_cat = ATTACHMENT_CATEGORY_NONE;
-			}
-
-			if ($display_cat == ATTACHMENT_CATEGORY_FLASH && !$user->optionget('viewflash'))
 			{
 				$display_cat = ATTACHMENT_CATEGORY_NONE;
 			}
@@ -1278,21 +1275,6 @@ function parse_attachments($forum_id, &$message, &$attachments, &$update_count_a
 						'THUMB_IMAGE'		=> $thumbnail_link,
 					);
 
-					$update_count_ary[] = $attachment['attach_id'];
-				break;
-
-				// Macromedia Flash Files
-				case ATTACHMENT_CATEGORY_FLASH:
-					list($width, $height) = @getimagesize($filename);
-
-					$block_array += array(
-						'S_FLASH_FILE'	=> true,
-						'WIDTH'			=> $width,
-						'HEIGHT'		=> $height,
-						'U_VIEW_LINK'	=> $download_link . '&amp;view=1',
-					);
-
-					// Viewed/Heared File ... update the download count
 					$update_count_ary[] = $attachment['attach_id'];
 				break;
 
@@ -1443,7 +1425,7 @@ function truncate_string($string, $max_length = 60, $max_store_length = 255, $al
 	$chars = array_map('utf8_htmlspecialchars', $_chars);
 
 	// Now check the length ;)
-	if (sizeof($chars) > $max_length)
+	if (count($chars) > $max_length)
 	{
 		// Cut off the last elements from the array
 		$string = implode('', array_slice($chars, 0, $max_length - utf8_strlen($append)));
@@ -1482,6 +1464,8 @@ function truncate_string($string, $max_length = 60, $max_store_length = 255, $al
 * Get username details for placing into templates.
 * This function caches all modes on first call, except for no_profile and anonymous user - determined by $user_id.
 *
+* @html Username spans and links
+*
 * @param string $mode Can be profile (for getting an url to the profile), username (for obtaining the username), colour (for obtaining the user colour), full (for obtaining a html string representing a coloured link to the users profile) or no_profile (the same as full but forcing no profile link)
 * @param int $user_id The users id
 * @param string $username The users name
@@ -1501,6 +1485,7 @@ function get_username_string($mode, $user_id, $username, $username_colour = '', 
 	{
 		global $phpbb_root_path, $phpEx;
 
+		/** @html Username spans and links for usage in the template */
 		$_profile_cache['base_url'] = append_sid("{$phpbb_root_path}memberlist.$phpEx", 'mode=viewprofile&amp;u={USER_ID}');
 		$_profile_cache['tpl_noprofile'] = '<span class="username">{USERNAME}</span>';
 		$_profile_cache['tpl_noprofile_colour'] = '<span style="color: {USERNAME_COLOUR};" class="username-coloured">{USERNAME}</span>';
@@ -1651,7 +1636,7 @@ function phpbb_generate_string_list($items, $user)
 		return '';
 	}
 
-	$count = sizeof($items);
+	$count = count($items);
 	$last_item = array_pop($items);
 	$lang_key = 'STRING_LIST_MULTI';
 
@@ -1672,7 +1657,7 @@ class bitfield
 {
 	var $data;
 
-	function bitfield($bitfield = '')
+	function __construct($bitfield = '')
 	{
 		$this->data = base64_decode($bitfield);
 	}
@@ -1756,5 +1741,50 @@ class bitfield
 	function merge($bitfield)
 	{
 		$this->data = $this->data | $bitfield->get_blob();
+	}
+}
+
+/**
+ * Formats the quote according to the given BBCode status setting
+ *
+ * @param phpbb\language\language				$language Language class
+ * @param parse_message 						$message_parser Message parser class
+ * @param phpbb\textformatter\utils_interface	$text_formatter_utils Text formatter utilities
+ * @param bool 									$bbcode_status The status of the BBCode setting
+ * @param array 								$quote_attributes The attributes of the quoted post
+ * @param string 								$message_link Link of the original quoted post
+ */
+function phpbb_format_quote($language, $message_parser, $text_formatter_utils, $bbcode_status, $quote_attributes, $message_link = '')
+{
+	if ($bbcode_status)
+	{
+		$quote_text = $text_formatter_utils->generate_quote(
+			censor_text($message_parser->message),
+			$quote_attributes
+		);
+
+		$message_parser->message = $quote_text . "\n\n";
+	}
+	else
+	{
+		$offset = 0;
+		$quote_string = "&gt; ";
+		$message = censor_text(trim($message_parser->message));
+		// see if we are nesting. It's easily tricked but should work for one level of nesting
+		if (strpos($message, "&gt;") !== false)
+		{
+			$offset = 10;
+		}
+		$message = utf8_wordwrap($message, 75 + $offset, "\n");
+
+		$message = $quote_string . $message;
+		$message = str_replace("\n", "\n" . $quote_string, $message);
+
+		$message_parser->message = $quote_attributes['author'] . " " . $language->lang('WROTE') . ":\n" . $message . "\n";
+	}
+
+	if ($message_link)
+	{
+		$message_parser->message = $message_link . $message_parser->message;
 	}
 }

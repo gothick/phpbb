@@ -40,7 +40,7 @@ class phpbb_questionnaire_data_collector
 	*
 	* @param	string
 	*/
-	function phpbb_questionnaire_data_collector($install_id)
+	function __construct($install_id)
 	{
 		$this->install_id = $install_id;
 		$this->providers = array();
@@ -110,7 +110,6 @@ class phpbb_questionnaire_php_data_provider
 			'version'						=> PHP_VERSION,
 			'sapi'							=> PHP_SAPI,
 			'int_size'						=> defined('PHP_INT_SIZE') ? PHP_INT_SIZE : '',
-			'safe_mode'						=> (int) @ini_get('safe_mode'),
 			'open_basedir'					=> (int) @ini_get('open_basedir'),
 			'memory_limit'					=> @ini_get('memory_limit'),
 			'allow_url_fopen'				=> (int) @ini_get('allow_url_fopen'),
@@ -121,8 +120,6 @@ class phpbb_questionnaire_php_data_provider
 			'disable_functions'				=> @ini_get('disable_functions'),
 			'disable_classes'				=> @ini_get('disable_classes'),
 			'enable_dl'						=> (int) @ini_get('enable_dl'),
-			'magic_quotes_gpc'				=> (int) @ini_get('magic_quotes_gpc'),
-			'register_globals'				=> (int) @ini_get('register_globals'),
 			'filter.default'				=> @ini_get('filter.default'),
 			'zend.ze1_compatibility_mode'	=> (int) @ini_get('zend.ze1_compatibility_mode'),
 			'unicode.semantics'				=> (int) @ini_get('unicode.semantics'),
@@ -223,7 +220,7 @@ class phpbb_questionnaire_phpbb_data_provider
 	*
 	* @param	array	$config
 	*/
-	function phpbb_questionnaire_phpbb_data_provider($config)
+	function __construct($config)
 	{
 		// generate a unique id if necessary
 		if (empty($config['questionnaire_unique_id']))
@@ -337,7 +334,7 @@ class phpbb_questionnaire_phpbb_data_provider
 			'edit_time' => true,
 			'email_check_mx' => true,
 			'email_enable' => true,
-			'email_function_name' => true,
+			'email_force_sender' => true,
 			'email_package_size' => true,
 			'enable_confirm' => true,
 			'enable_pm_icons' => true,
@@ -369,7 +366,6 @@ class phpbb_questionnaire_phpbb_data_provider
 			'hot_threshold' => true,
 			'img_create_thumbnail' => true,
 			'img_display_inlined' => true,
-			'img_imagick' => true,
 			'img_link_height' => true,
 			'img_link_width' => true,
 			'img_max_height' => true,

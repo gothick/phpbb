@@ -506,7 +506,7 @@ function display_forums($root_data = '', $display_moderators = true, $return_mod
 				}
 			}
 
-			$l_subforums = (sizeof($subforums[$forum_id]) == 1) ? $user->lang['SUBFORUM'] : $user->lang['SUBFORUMS'];
+			$l_subforums = (count($subforums[$forum_id]) == 1) ? $user->lang['SUBFORUM'] : $user->lang['SUBFORUMS'];
 			$folder_image = ($forum_unread) ? 'forum_unread_subforum' : 'forum_read_subforum';
 		}
 		else
@@ -537,7 +537,7 @@ function display_forums($root_data = '', $display_moderators = true, $return_mod
 		// Create last post link information, if appropriate
 		if ($row['forum_last_post_id'])
 		{
-			if ($row['forum_password_last_post'] === '' && $auth->acl_get('f_read', $row['forum_id_last_post']))
+			if ($row['forum_password_last_post'] === '' && $auth->acl_gets('f_read', 'f_list_topics', $row['forum_id_last_post']))
 			{
 				$last_post_subject = censor_text($row['forum_last_post_subject']);
 				$last_post_subject_truncated = truncate_string($last_post_subject, 30, 255, false, $user->lang['ELLIPSIS']);
@@ -547,18 +547,19 @@ function display_forums($root_data = '', $display_moderators = true, $return_mod
 				$last_post_subject = $last_post_subject_truncated = '';
 			}
 			$last_post_time = $user->format_date($row['forum_last_post_time']);
+			$last_post_time_rfc3339 = gmdate(DATE_RFC3339, $row['forum_last_post_time']);
 			$last_post_url = append_sid("{$phpbb_root_path}viewtopic.$phpEx", 'f=' . $row['forum_id_last_post'] . '&amp;p=' . $row['forum_last_post_id']) . '#p' . $row['forum_last_post_id'];
 		}
 		else
 		{
-			$last_post_subject = $last_post_time = $last_post_url = $last_post_subject_truncated = '';
+			$last_post_subject = $last_post_time = $last_post_time_rfc3339 = $last_post_url = $last_post_subject_truncated = '';
 		}
 
 		// Output moderator listing ... if applicable
 		$l_moderator = $moderators_list = '';
 		if ($display_moderators && !empty($forum_moderators[$forum_id]))
 		{
-			$l_moderator = (sizeof($forum_moderators[$forum_id]) == 1) ? $user->lang['MODERATOR'] : $user->lang['MODERATORS'];
+			$l_moderator = (count($forum_moderators[$forum_id]) == 1) ? $user->lang['MODERATOR'] : $user->lang['MODERATORS'];
 			$moderators_list = implode($user->lang['COMMA_SEPARATOR'], $forum_moderators[$forum_id]);
 		}
 
@@ -605,7 +606,7 @@ function display_forums($root_data = '', $display_moderators = true, $return_mod
 			'S_AUTH_READ'		=> $auth->acl_get('f_read', $row['forum_id']),
 			'S_LOCKED_FORUM'	=> ($row['forum_status'] == ITEM_LOCKED) ? true : false,
 			'S_LIST_SUBFORUMS'	=> ($row['display_subforum_list']) ? true : false,
-			'S_SUBFORUMS'		=> (sizeof($subforums_list)) ? true : false,
+			'S_SUBFORUMS'		=> (count($subforums_list)) ? true : false,
 			'S_DISPLAY_SUBJECT'	=>	($last_post_subject !== '' && $config['display_last_subject']) ? true : false,
 			'S_FEED_ENABLED'	=> ($config['feed_forum'] && !phpbb_optionget(FORUM_OPTION_FEED_EXCLUDE, $row['forum_options']) && $row['forum_type'] == FORUM_POST) ? true : false,
 
@@ -622,6 +623,7 @@ function display_forums($root_data = '', $display_moderators = true, $return_mod
 			'LAST_POST_SUBJECT'		=> $last_post_subject,
 			'LAST_POST_SUBJECT_TRUNCATED'	=> $last_post_subject_truncated,
 			'LAST_POST_TIME'		=> $last_post_time,
+			'LAST_POST_TIME_RFC3339'=> $last_post_time_rfc3339,
 			'LAST_POSTER'			=> get_username_string('username', $row['forum_last_poster_id'], $row['forum_last_poster_name'], $row['forum_last_poster_colour']),
 			'LAST_POSTER_COLOUR'	=> get_username_string('colour', $row['forum_last_poster_id'], $row['forum_last_poster_name'], $row['forum_last_poster_colour']),
 			'LAST_POSTER_FULL'		=> get_username_string('full', $row['forum_last_poster_id'], $row['forum_last_poster_name'], $row['forum_last_poster_colour']),
@@ -783,25 +785,25 @@ function generate_forum_nav(&$forum_data_ary)
 			}
 
 			$navlinks_parents[] = array(
-				'S_IS_CAT'		=> ($parent_type == FORUM_CAT) ? true : false,
-				'S_IS_LINK'		=> ($parent_type == FORUM_LINK) ? true : false,
-				'S_IS_POST'		=> ($parent_type == FORUM_POST) ? true : false,
-				'FORUM_NAME'	=> $parent_name,
-				'FORUM_ID'		=> $parent_forum_id,
-				'MICRODATA'		=> $microdata_attr . '="' . $parent_forum_id . '"',
-				'U_VIEW_FORUM'	=> append_sid("{$phpbb_root_path}viewforum.$phpEx", 'f=' . $parent_forum_id),
+				'S_IS_CAT'			=> ($parent_type == FORUM_CAT) ? true : false,
+				'S_IS_LINK'			=> ($parent_type == FORUM_LINK) ? true : false,
+				'S_IS_POST'			=> ($parent_type == FORUM_POST) ? true : false,
+				'BREADCRUMB_NAME'	=> $parent_name,
+				'FORUM_ID'			=> $parent_forum_id,
+				'MICRODATA'			=> $microdata_attr . '="' . $parent_forum_id . '"',
+				'U_BREADCRUMB'		=> append_sid("{$phpbb_root_path}viewforum.$phpEx", 'f=' . $parent_forum_id),
 			);
 		}
 	}
 
 	$navlinks = array(
-		'S_IS_CAT'		=> ($forum_data_ary['forum_type'] == FORUM_CAT) ? true : false,
-		'S_IS_LINK'		=> ($forum_data_ary['forum_type'] == FORUM_LINK) ? true : false,
-		'S_IS_POST'		=> ($forum_data_ary['forum_type'] == FORUM_POST) ? true : false,
-		'FORUM_NAME'	=> $forum_data_ary['forum_name'],
-		'FORUM_ID'		=> $forum_data_ary['forum_id'],
-		'MICRODATA'		=> $microdata_attr . '="' . $forum_data_ary['forum_id'] . '"',
-		'U_VIEW_FORUM'	=> append_sid("{$phpbb_root_path}viewforum.$phpEx", 'f=' . $forum_data_ary['forum_id']),
+		'S_IS_CAT'			=> ($forum_data_ary['forum_type'] == FORUM_CAT) ? true : false,
+		'S_IS_LINK'			=> ($forum_data_ary['forum_type'] == FORUM_LINK) ? true : false,
+		'S_IS_POST'			=> ($forum_data_ary['forum_type'] == FORUM_POST) ? true : false,
+		'BREADCRUMB_NAME'	=> $forum_data_ary['forum_name'],
+		'FORUM_ID'			=> $forum_data_ary['forum_id'],
+		'MICRODATA'			=> $microdata_attr . '="' . $forum_data_ary['forum_id'] . '"',
+		'U_BREADCRUMB'		=> append_sid("{$phpbb_root_path}viewforum.$phpEx", 'f=' . $forum_data_ary['forum_id']),
 	);
 
 	$forum_template_data = array(
@@ -1117,7 +1119,6 @@ function display_custom_bbcodes()
 			'BBCODE_TAG'		=> $row['bbcode_tag'],
 			'BBCODE_TAG_CLEAN'	=> str_replace('=', '-', $row['bbcode_tag']),
 			'BBCODE_HELPLINE'	=> $row['bbcode_helpline'],
-			'A_BBCODE_HELPLINE'	=> str_replace(array('&amp;', '&quot;', "'", '&lt;', '&gt;'), array('&', '"', "\'", '<', '>'), $row['bbcode_helpline']),
 		);
 
 		/**
@@ -1146,18 +1147,6 @@ function display_custom_bbcodes()
 	* @since 3.1.0-a1
 	*/
 	$phpbb_dispatcher->dispatch('core.display_custom_bbcodes');
-}
-
-/**
-* Display reasons
-*
-* @deprecated 3.2.0-dev
-*/
-function display_reasons($reason_id = 0)
-{
-	global $phpbb_container;
-
-	$phpbb_container->get('phpbb.report.report_reason_list_provider')->display_reasons($reason_id);
 }
 
 /**
@@ -1241,6 +1230,7 @@ function display_user_activity(&$userdata_ary)
 	}
 
 	$userdata = $userdata_ary;
+	$show_user_activity = true;
 	/**
 	* Alter list of forums and topics to display as active
 	*
@@ -1248,9 +1238,11 @@ function display_user_activity(&$userdata_ary)
 	* @var	array	userdata						User's data
 	* @var	array	active_f_row					List of active forums
 	* @var	array	active_t_row					List of active posts
+	* @var	bool	show_user_activity				Show user forum and topic activity
 	* @since 3.1.0-RC3
+	* @changed 3.2.5-RC1 Added show_user_activity into event
 	*/
-	$vars = array('userdata', 'active_f_row', 'active_t_row');
+	$vars = array('userdata', 'active_f_row', 'active_t_row', 'show_user_activity');
 	extract($phpbb_dispatcher->trigger_event('core.display_user_activity_modify_actives', compact($vars)));
 	$userdata_ary = $userdata;
 	unset($userdata);
@@ -1287,7 +1279,7 @@ function display_user_activity(&$userdata_ary)
 		'ACTIVE_TOPIC_PCT'		=> sprintf($l_active_pct, $active_t_pct),
 		'U_ACTIVE_FORUM'		=> append_sid("{$phpbb_root_path}viewforum.$phpEx", 'f=' . $active_f_id),
 		'U_ACTIVE_TOPIC'		=> append_sid("{$phpbb_root_path}viewtopic.$phpEx", 't=' . $active_t_id),
-		'S_SHOW_ACTIVITY'		=> true)
+		'S_SHOW_ACTIVITY'		=> $show_user_activity)
 	);
 }
 
@@ -1646,10 +1638,10 @@ function phpbb_show_profile($data, $user_notes_enabled = false, $warn_user_enabl
 		($data['user_type'] != USER_INACTIVE || $data['user_inactive_reason'] != INACTIVE_MANUAL) &&
 
 		// They must be able to read PMs
-		sizeof($auth->acl_get_list($user_id, 'u_readpm')) &&
+		count($auth->acl_get_list($user_id, 'u_readpm')) &&
 
 		// They must not be permanently banned
-		!sizeof(phpbb_get_banned_user_ids($user_id, false)) &&
+		!count(phpbb_get_banned_user_ids($user_id, false)) &&
 
 		// They must allow users to contact via PM
 		(($auth->acl_gets('a_', 'm_') || $auth->acl_getf_global('m_')) || $data['user_allow_pm'])

@@ -13,7 +13,7 @@
 
 class phpbb_error_collector_test extends phpbb_test_case
 {
-	public function setUp()
+	public function setUp(): void
 	{
 		parent::setUp();
 
@@ -52,8 +52,8 @@ class phpbb_error_collector_test extends phpbb_test_case
 		1/0; $line = __LINE__;
 
 		// Cause a notice
-		$array = array('ITEM' => 'value');
-		$value = $array[ITEM]; $line2 = __LINE__;
+		$array = array(0 => 'value');
+		$value = $array[1]; $line2 = __LINE__;
 
 		$collector->uninstall();
 

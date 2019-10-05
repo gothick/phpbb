@@ -63,7 +63,7 @@ class convertor
 	{
 		global $user, $phpbb_root_path, $phpEx, $db, $lang, $config, $cache, $auth;
 		global $convert, $convert_row, $message_parser, $skip_rows, $language;
-		global $request, $phpbb_dispatcher;
+		global $request, $phpbb_dispatcher, $phpbb_container;
 
 		$phpbb_config_php_file = new \phpbb\config_php_file($phpbb_root_path, $phpEx);
 		extract($phpbb_config_php_file->get_all());
@@ -281,7 +281,7 @@ class convertor
 				$bad_folders = array();
 
 				$local_paths = array(
-					'avatar_path'			=> path($config['avatar_path']),
+					'avatar_path'			=> path($config['storage\\avatar\\config\\path']),
 					'avatar_gallery_path'	=> path($config['avatar_gallery_path']),
 					'icons_path'			=> path($config['icons_path']),
 					'ranks_path'			=> path($config['ranks_path']),
@@ -312,9 +312,9 @@ class convertor
 					}
 				}
 
-				if (sizeof($bad_folders))
+				if (count($bad_folders))
 				{
-					$msg = (sizeof($bad_folders) == 1) ? $user->lang['MAKE_FOLDER_WRITABLE'] : $user->lang['MAKE_FOLDERS_WRITABLE'];
+					$msg = (count($bad_folders) == 1) ? $user->lang['MAKE_FOLDER_WRITABLE'] : $user->lang['MAKE_FOLDERS_WRITABLE'];
 					sort($bad_folders);
 					$this->error(sprintf($msg, implode('<br />', $bad_folders)), __LINE__, __FILE__, true);
 
@@ -371,7 +371,7 @@ class convertor
 								$val = array($val);
 							}
 
-							for ($j = 0, $size = sizeof($val); $j < $size; ++$j)
+							for ($j = 0, $size = count($val); $j < $size; ++$j)
 							{
 								if (preg_match('/LEFT JOIN ([a-z0-9_]+) AS ([a-z0-9_]+)/i', $val[$j], $m))
 								{
@@ -412,11 +412,11 @@ class convertor
 				// Throw an error if some tables are missing
 				// We used to do some guessing here, but since we have a suggestion of possible values earlier, I don't see it adding anything here to do it again
 
-				if (sizeof($missing_tables) == sizeof($tables_list))
+				if (count($missing_tables) == count($tables_list))
 				{
 					$this->error($user->lang['NO_TABLES_FOUND'] . ' ' . $user->lang['CHECK_TABLE_PREFIX'], __LINE__, __FILE__);
 				}
-				else if (sizeof($missing_tables))
+				else if (count($missing_tables))
 				{
 					$this->error(sprintf($user->lang['TABLES_MISSING'], implode($user->lang['COMMA_SEPARATOR'], $missing_tables)) . '<br /><br />' . $user->lang['CHECK_TABLE_PREFIX'], __LINE__, __FILE__);
 				}
@@ -514,7 +514,7 @@ class convertor
 		));
 
 		// This loop takes one target table and processes it
-		while ($current_table < sizeof($convert->convertor['schema']))
+		while ($current_table < count($convert->convertor['schema']))
 		{
 			$schema = $convert->convertor['schema'][$current_table];
 
@@ -687,7 +687,7 @@ class convertor
 
 				$this->template->assign_block_vars('checks', array(
 					'TITLE'		=> "skip_rows = $skip_rows",
-					'RESULT'	=> $rows . ((defined('DEBUG') && function_exists('memory_get_usage')) ? ceil(memory_get_usage()/1024) . ' ' . $user->lang['KIB'] : ''),
+					'RESULT'	=> $rows . (($phpbb_container->getParameter('debug.memory') && function_exists('memory_get_usage')) ? ceil(memory_get_usage()/1024) . ' ' . $user->lang['KIB'] : ''),
 				));
 
 				$mtime = explode(' ', microtime());
@@ -753,7 +753,7 @@ class convertor
 							case 'mysqli':
 								$waiting_rows[] = '(' . implode(', ', $insert_values) . ')';
 
-								if (sizeof($waiting_rows) >= $convert->num_wait_rows)
+								if (count($waiting_rows) >= $convert->num_wait_rows)
 								{
 									$errored = false;
 
@@ -809,7 +809,7 @@ class convertor
 				$src_db->sql_freeresult($___result);
 
 				// We might still have some rows waiting
-				if (sizeof($waiting_rows))
+				if (count($waiting_rows))
 				{
 					$errored = false;
 					$db->sql_return_on_error(true);
@@ -888,7 +888,7 @@ class convertor
 				$current_table++;
 //				$percentage = ($skip_rows == 0) ? 0 : floor(100 / ($total_rows / $skip_rows));
 
-				$msg = sprintf($user->lang['STEP_PERCENT_COMPLETED'], $current_table, sizeof($convert->convertor['schema']));
+				$msg = sprintf($user->lang['STEP_PERCENT_COMPLETED'], $current_table, count($convert->convertor['schema']));
 
 				$this->template->assign_vars(array(
 					'BODY'			=> $msg,
@@ -920,6 +920,7 @@ class convertor
 	{
 		global $user, $db, $phpbb_root_path, $phpEx, $config, $cache;
 		global $convert;
+		global $phpbb_container;
 
 		include_once ($phpbb_root_path . 'includes/functions_admin.' . $phpEx);
 
@@ -959,7 +960,7 @@ class convertor
 			sync('topic', 'range', 'topic_id BETWEEN ' . $sync_batch . ' AND ' . $end, true, true);
 
 			$this->template->assign_block_vars('checks', array(
-				'TITLE'		=> sprintf($user->lang['SYNC_TOPIC_ID'], $sync_batch, ($sync_batch + $batch_size)) . ((defined('DEBUG') && function_exists('memory_get_usage')) ? ' [' . ceil(memory_get_usage()/1024) . ' ' . $user->lang['KIB'] . ']' : ''),
+				'TITLE'		=> sprintf($user->lang['SYNC_TOPIC_ID'], $sync_batch, ($sync_batch + $batch_size)) . (($phpbb_container->getParameter('debug.memory') && function_exists('memory_get_usage')) ? ' [' . ceil(memory_get_usage()/1024) . ' ' . $user->lang['KIB'] . ']' : ''),
 				'RESULT'	=> $user->lang['DONE'],
 			));
 
@@ -1126,7 +1127,7 @@ class convertor
 				}
 				else
 				{
-					while ($last_statement < sizeof($convert->convertor['execute_last']))
+					while ($last_statement < count($convert->convertor['execute_last']))
 					{
 						// @codingStandardsIgnoreStart
 						eval($convert->convertor['execute_last'][$last_statement]);
@@ -1140,8 +1141,8 @@ class convertor
 						$last_statement++;
 						$url = $this->save_convert_progress($converter, 'jump=1&amp;last=' . $last_statement);
 
-						$percentage = ($last_statement == 0) ? 0 : floor(100 / (sizeof($convert->convertor['execute_last']) / $last_statement));
-						$msg = sprintf($user->lang['STEP_PERCENT_COMPLETED'], $last_statement, sizeof($convert->convertor['execute_last']), $percentage);
+						$percentage = ($last_statement == 0) ? 0 : floor(100 / (count($convert->convertor['execute_last']) / $last_statement));
+						$msg = sprintf($user->lang['STEP_PERCENT_COMPLETED'], $last_statement, count($convert->convertor['execute_last']), $percentage);
 
 						$this->template->assign_vars(array(
 							'L_SUBMIT'		=> $user->lang['CONTINUE_LAST'],

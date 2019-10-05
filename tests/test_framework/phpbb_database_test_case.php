@@ -11,7 +11,9 @@
 *
 */
 
-abstract class phpbb_database_test_case extends PHPUnit_Extensions_Database_TestCase
+use PHPUnit\DbUnit\TestCase;
+
+abstract class phpbb_database_test_case extends TestCase
 {
 	static private $already_connected;
 
@@ -31,10 +33,10 @@ abstract class phpbb_database_test_case extends PHPUnit_Extensions_Database_Test
 	{
 		parent::__construct($name, $data, $dataName);
 		$this->backupStaticAttributesBlacklist += array(
-			'PHP_CodeCoverage' => array('instance'),
-			'PHP_CodeCoverage_Filter' => array('instance'),
-			'PHP_CodeCoverage_Util' => array('ignoredLines', 'templateMethods'),
-			'PHP_Timer' => array('startTimes',),
+			'SebastianBergmann\CodeCoverage\CodeCoverage' => array('instance'),
+			'SebastianBergmann\CodeCoverage\Filter' => array('instance'),
+			'SebastianBergmann\CodeCoverage\Util' => array('ignoredLines', 'templateMethods'),
+			'SebastianBergmann\Timer\Timer' => array('startTimes',),
 			'PHP_Token_Stream' => array('customTokens'),
 			'PHP_Token_Stream_CachingFactory' => array('cache'),
 
@@ -58,7 +60,7 @@ abstract class phpbb_database_test_case extends PHPUnit_Extensions_Database_Test
 
 		$setup_extensions = static::setup_extensions();
 
-		$finder = new \phpbb\finder(new \phpbb\filesystem\filesystem(), $phpbb_root_path, null, $phpEx);
+		$finder = new \phpbb\finder($phpbb_root_path, null, $phpEx);
 		$finder->core_path('phpbb/db/migration/data/');
 		if (!empty($setup_extensions))
 		{
@@ -99,7 +101,7 @@ abstract class phpbb_database_test_case extends PHPUnit_Extensions_Database_Test
 		parent::tearDownAfterClass();
 	}
 
-	protected function tearDown()
+	protected function tearDown(): void
 	{
 		parent::tearDown();
 
@@ -113,7 +115,7 @@ abstract class phpbb_database_test_case extends PHPUnit_Extensions_Database_Test
 		}
 	}
 
-	protected function setUp()
+	protected function setUp(): void
 	{
 		parent::setUp();
 
@@ -142,9 +144,86 @@ abstract class phpbb_database_test_case extends PHPUnit_Extensions_Database_Test
 		$manager->database_synchronisation($table_column_map);
 	}
 
+	/**
+	 * Create xml data set for insertion into database
+	 *
+	 * @param string $path Path to fixture XML
+	 * @return PHPUnit\DbUnit\DataSet\DefaultDataSet|PHPUnit\DbUnit\DataSet\XmlDataSet
+	 */
 	public function createXMLDataSet($path)
 	{
 		$this->fixture_xml_data = parent::createXMLDataSet($path);
+
+		// Extend XML data set on MSSQL
+		if (strpos($this->get_database_config()['dbms'], 'mssql') !== false)
+		{
+			$newXmlData = new PHPUnit\DbUnit\DataSet\DefaultDataSet([]);
+			$db = $this->new_dbal();
+			foreach ($this->fixture_xml_data as $key => $value)
+			{
+				/** @var PHPUnit\DbUnit\DataSet\DefaultTableMetaData $tableMetaData */
+				$tableMetaData = $value->getTableMetaData();
+				$columns = $tableMetaData->getColumns();
+				$primaryKeys = $tableMetaData->getPrimaryKeys();
+
+				$sql = "SELECT COLUMN_NAME AS identity_column
+					FROM INFORMATION_SCHEMA.COLUMNS
+					WHERE COLUMNPROPERTY(object_id(TABLE_SCHEMA + '.' + TABLE_NAME), COLUMN_NAME, 'IsIdentity') = 1
+						AND TABLE_NAME = '$key'
+					ORDER BY TABLE_NAME";
+				$result = $db->sql_query($sql);
+				$identity_columns = $db->sql_fetchrowset($result);
+				$has_default_identity = false;
+				$add_primary_keys = false;
+
+				// Iterate over identity columns to check for missing primary
+				// keys in data set and special identity column 'mssqlindex'
+				// that might have been added when no default identity column
+				// exists in the current table.
+				foreach ($identity_columns as $column)
+				{
+					if (in_array($column['identity_column'], $columns) && !in_array($column['identity_column'], $primaryKeys))
+					{
+						$primaryKeys[] = $column['identity_column'];
+						$add_primary_keys = true;
+					}
+
+					if ($column['identity_column'] === 'mssqlindex')
+					{
+						$has_default_identity = true;
+						break;
+					}
+				}
+
+				if ($has_default_identity || $add_primary_keys)
+				{
+					// Add default identity column to columns list
+					if ($has_default_identity)
+					{
+						$columns[] = 'mssqlindex';
+					}
+
+					$newMetaData = new PHPUnit\DbUnit\DataSet\DefaultTableMetaData($key, $columns, $primaryKeys);
+					$newTable = new PHPUnit\DbUnit\DataSet\DefaultTable($newMetaData);
+					for ($i = 0; $i < $value->getRowCount(); $i++)
+					{
+						$dataRow = $value->getRow($i);
+						if ($has_default_identity)
+						{
+							$dataRow['mssqlindex'] = $i + 1;
+						}
+						$newTable->addRow($dataRow);
+					}
+					$newXmlData->addTable($newTable);
+				}
+				else
+				{
+					$newXmlData->addTable($value);
+				}
+			}
+
+			$this->fixture_xml_data = $newXmlData;
+		}
 		return $this->fixture_xml_data;
 	}
 
@@ -229,7 +308,7 @@ abstract class phpbb_database_test_case extends PHPUnit_Extensions_Database_Test
 	{
 		// http://stackoverflow.com/questions/3838288/phpunit-assert-two-arrays-are-equal-but-order-of-elements-not-important
 		// but one array_diff is not enough!
-		if (sizeof(array_diff($one, $two)) || sizeof(array_diff($two, $one)))
+		if (count(array_diff($one, $two)) || count(array_diff($two, $one)))
 		{
 			// get a nice error message
 			$this->assertEquals($one, $two);

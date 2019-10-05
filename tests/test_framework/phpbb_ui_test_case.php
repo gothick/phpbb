@@ -11,6 +11,7 @@
 *
 */
 
+use Facebook\WebDriver\Chrome\ChromeOptions;
 use Facebook\WebDriver\WebDriverBy;
 use Facebook\WebDriver\Exception\WebDriverCurlException;
 use Facebook\WebDriver\Remote\RemoteWebDriver;
@@ -52,15 +53,10 @@ class phpbb_ui_test_case extends phpbb_test_case
 	{
 		parent::setUpBeforeClass();
 
-		if (version_compare(PHP_VERSION, '5.3.19', '<'))
-		{
-			self::markTestSkipped('UI test case requires at least PHP 5.3.19.');
-		}
-		else if (!class_exists('\Facebook\WebDriver\Remote\RemoteWebDriver'))
+		if (!class_exists('\Facebook\WebDriver\Remote\RemoteWebDriver'))
 		{
 			self::markTestSkipped(
-				'Could not find RemoteWebDriver class. ' .
-				'Run "php ../composer.phar install" from the tests folder.'
+				'Could not find RemoteWebDriver class.'
 			);
 		}
 
@@ -79,8 +75,15 @@ class phpbb_ui_test_case extends phpbb_test_case
 		}
 
 		try {
-			$capabilities = DesiredCapabilities::firefox();
-			self::$webDriver = RemoteWebDriver::create(self::$host . ':' . self::$port, $capabilities);
+			$capabilities = DesiredCapabilities::chrome();
+			$chromeOptions = (new ChromeOptions)->addArguments(['headless', 'disable-gpu']);
+			$capabilities->setCapability(ChromeOptions::CAPABILITY, $chromeOptions);
+			self::$webDriver = RemoteWebDriver::create(
+				self::$host . ':' . self::$port,
+				$capabilities,
+				30 * 1000, // 30 seconds connection timeout
+				30 * 1000 // 30 seconds request timeout
+			);
 		} catch (WebDriverCurlException $e) {
 			self::markTestSkipped('PhantomJS webserver is not running.');
 		}
@@ -100,7 +103,7 @@ class phpbb_ui_test_case extends phpbb_test_case
 		return array();
 	}
 
-	public function setUp()
+	public function setUp(): void
 	{
 		if (!self::$install_success)
 		{
@@ -132,7 +135,7 @@ class phpbb_ui_test_case extends phpbb_test_case
 		}
 	}
 
-	protected function tearDown()
+	protected function tearDown(): void
 	{
 		parent::tearDown();
 
@@ -192,6 +195,13 @@ class phpbb_ui_test_case extends phpbb_test_case
 			}
 		}
 
+		$install_config_file = $phpbb_root_path . 'store/install_config.php';
+
+		if (file_exists($install_config_file))
+		{
+			unlink($install_config_file);
+		}
+
 		$container_builder = new \phpbb\di\container_builder($phpbb_root_path, $phpEx);
 		$container = $container_builder
 			->with_environment('installer')
@@ -205,11 +215,14 @@ class phpbb_ui_test_case extends phpbb_test_case
 				],
 				'cache.driver.class' => 'phpbb\cache\driver\file'
 			])
+			->with_config(new \phpbb\config_php_file($phpbb_root_path, $phpEx))
 			->without_compiled_container()
 			->get_container();
 
 		$container->register('installer.install_finish.notify_user')->setSynthetic(true);
 		$container->set('installer.install_finish.notify_user', new phpbb_mock_null_installer_task());
+		$container->register('installer.install_finish.install_extensions')->setSynthetic(true);
+		$container->set('installer.install_finish.install_extensions', new phpbb_mock_null_installer_task());
 		$container->compile();
 
 		$language = $container->get('language');
@@ -307,9 +320,9 @@ class phpbb_ui_test_case extends phpbb_test_case
 		$ext_path = str_replace('/', '%2F', $extension);
 
 		$this->visit('adm/index.php?i=acp_extensions&mode=main&action=enable_pre&ext_name=' . $ext_path . '&sid=' . $this->sid);
-		$this->assertNotEmpty(count($this->find_element('cssSelector', '.submit-buttons')));
+		$this->assertNotEmpty(count($this->find_element('cssSelector', 'div.main fieldset div input.button2')));
 
-		$this->find_element('cssSelector', "input[value='Enable']")->submit();
+		$this->find_element('cssSelector', "input[value='Yes']")->submit();
 		$this->add_lang('acp/extensions');
 
 		try
@@ -317,7 +330,7 @@ class phpbb_ui_test_case extends phpbb_test_case
 			$meta_refresh = $this->find_element('cssSelector', 'meta[http-equiv="refresh"]');
 
 			// Wait for extension to be fully enabled
-			while (sizeof($meta_refresh))
+			while (count($meta_refresh))
 			{
 				preg_match('#url=.+/(adm+.+)#', $meta_refresh->getAttribute('content'), $match);
 				$this->getDriver()->execute(array('method' => 'post', 'url' => $match[1]));
@@ -334,10 +347,92 @@ class phpbb_ui_test_case extends phpbb_test_case
 		$this->logout();
 	}
 
+	public function disable_ext($extension)
+	{
+		$this->login();
+		$this->admin_login();
+
+		$ext_path = str_replace('/', '%2F', $extension);
+
+		$this->visit('adm/index.php?i=acp_extensions&mode=main&action=disable_pre&ext_name=' . $ext_path . '&sid=' . $this->sid);
+		$this->assertNotEmpty(count($this->find_element('cssSelector', 'div.main fieldset div input.button2')));
+
+		$this->find_element('cssSelector', "input[value='Yes']")->submit();
+		$this->add_lang('acp/extensions');
+
+		try
+		{
+			$meta_refresh = $this->find_element('cssSelector', 'meta[http-equiv="refresh"]');
+
+			// Wait for extension to be fully enabled
+			while (count($meta_refresh))
+			{
+				preg_match('#url=.+/(adm+.+)#', $meta_refresh->getAttribute('content'), $match);
+				$this->getDriver()->execute(array('method' => 'post', 'url' => $match[1]));
+				$meta_refresh = $this->find_element('cssSelector', 'meta[http-equiv="refresh"]');
+			}
+		}
+		catch (\Facebook\WebDriver\Exception\NoSuchElementException $e)
+		{
+			// Probably no refresh triggered
+		}
+
+		$this->assertContainsLang('EXTENSION_DISABLE_SUCCESS', $this->find_element('cssSelector', 'div.successbox')->getText());
+
+		$this->logout();
+	}
+
+	public function delete_ext_data($extension)
+	{
+		$this->login();
+		$this->admin_login();
+
+		$ext_path = str_replace('/', '%2F', $extension);
+
+		$this->visit('adm/index.php?i=acp_extensions&mode=main&action=delete_data_pre&ext_name=' . $ext_path . '&sid=' . $this->sid);
+		$this->assertNotEmpty(count($this->find_element('cssSelector', 'div.main fieldset div input.button2')));
+
+		$this->find_element('cssSelector', "input[value='Yes']")->submit();
+		$this->add_lang('acp/extensions');
+
+		try
+		{
+			$meta_refresh = $this->find_element('cssSelector', 'meta[http-equiv="refresh"]');
+
+			// Wait for extension to be fully enabled
+			while (count($meta_refresh))
+			{
+				preg_match('#url=.+/(adm+.+)#', $meta_refresh->getAttribute('content'), $match);
+				$this->getDriver()->execute(array('method' => 'post', 'url' => $match[1]));
+				$meta_refresh = $this->find_element('cssSelector', 'meta[http-equiv="refresh"]');
+			}
+		}
+		catch (\Facebook\WebDriver\Exception\NoSuchElementException $e)
+		{
+			// Probably no refresh triggered
+		}
+
+		$this->assertContainsLang('EXTENSION_DELETE_DATA_SUCCESS', $this->find_element('cssSelector', 'div.successbox')->getText());
+
+		$this->logout();
+	}
+
+	public function uninstall_ext($extension)
+	{
+		$this->disable_ext($extension);
+		$this->delete_ext_data($extension);
+	}
+
 	protected function get_cache_driver()
 	{
 		if (!$this->cache)
 		{
+			global $phpbb_container, $phpbb_root_path;
+
+			$phpbb_container = new phpbb_mock_container_builder();
+			$phpbb_container->setParameter('core.environment', PHPBB_ENVIRONMENT);
+			$phpbb_container->setParameter('core.cache_dir', $phpbb_root_path . 'cache/' . PHPBB_ENVIRONMENT . '/');
+
 			$this->cache = new \phpbb\cache\driver\file;
 		}
 
@@ -382,7 +477,6 @@ class phpbb_ui_test_case extends phpbb_test_case
 			$container,
 			$db,
 			$config,
-			new phpbb\filesystem(),
 			$user,
 			self::$config['table_prefix'] . 'ext',
 			dirname(__FILE__) . '/',
@@ -589,5 +683,38 @@ class phpbb_ui_test_case extends phpbb_test_case
 		$screenshot = time() . ".png";
 
 		$this->getDriver()->takeScreenshot($screenshot);
+	}
+
+	/**
+	 * Wait for AJAX. Should be called after an AJAX action is made.
+	 *
+	 * @param string $framework javascript frameworks jquery|prototype|dojo
+	 * @throws \Facebook\WebDriver\Exception\NoSuchElementException
+	 * @throws \Facebook\WebDriver\Exception\TimeOutException
+	 */
+	public function waitForAjax($framework = 'jquery')
+	{
+		switch ($framework)
+		{
+			case 'jquery':
+				$code = 'return jQuery.active;';
+			break;
+			case 'prototype':
+				$code = 'return Ajax.activeRequestCount;';
+			break;
+			case 'dojo':
+				$code = 'return dojo.io.XMLHTTPTransport.inFlight.length;';
+			break;
+			default:
+				throw new \RuntimeException('Unsupported framework');
+			break;
+		}
+		// wait for at most 30s, retry every 2000ms (2s)
+		$driver = $this->getDriver();
+		$driver->wait(30, 2000)->until(
+			function () use ($driver, $code) {
+				return !$driver->executeScript($code);
+			}
+		);
 	}
 }

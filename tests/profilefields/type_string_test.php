@@ -22,11 +22,11 @@ class phpbb_profilefield_type_string_test extends phpbb_test_case
 	* @access public
 	* @return null
 	*/
-	public function setUp()
+	public function setUp(): void
 	{
-		global $request, $user, $cache, $phpbb_root_path, $phpEx;
+		global $config, $request, $user, $cache, $phpbb_root_path, $phpEx;
 
-		$user = $this->getMock('\phpbb\user', array(), array(
+		$user = $this->createMock('\phpbb\user', array(), array(
 			new \phpbb\language\language(new \phpbb\language\language_file_loader($phpbb_root_path, $phpEx)),
 			'\phpbb\datetime'
 		));
@@ -34,9 +34,10 @@ class phpbb_profilefield_type_string_test extends phpbb_test_case
 		$user->expects($this->any())
 			->method('lang')
 			->will($this->returnCallback(array($this, 'return_callback_implode')));
+		$config = new \phpbb\config\config([]);
 
-		$request = $this->getMock('\phpbb\request\request');
-		$template = $this->getMock('\phpbb\template\template');
+		$request = $this->createMock('\phpbb\request\request');
+		$template = $this->createMock('\phpbb\template\template');
 
 		$this->cp = new \phpbb\profilefields\type\type_string(
 			$request,
@@ -268,6 +269,18 @@ class phpbb_profilefield_type_string_test extends phpbb_test_case
 				array('field_show_novalue' => false),
 				null,
 				'Field should simply output null for empty vlaue',
+			),
+			array(
+				'http://foobar.com',
+				array('field_show_novalue' => false),
+				'<!-- l --><a class="postlink-local" href="http://foobar.com">foobar.com</a><!-- l -->',
+				'Field should output the given value and make it clickable',
+			),
+			array(
+				'javascript://foobar.com',
+				array('field_show_novalue' => true),
+				'javascript://foobar.com',
+				'Field should output the given value but not make it clickable',
 			),
 		);
 	}

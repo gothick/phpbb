@@ -37,6 +37,13 @@ class enable extends command
 		$io = new SymfonyStyle($input, $output);
 
 		$name = $input->getArgument('extension-name');
+
+		if (!$this->manager->is_available($name))
+		{
+			$io->error($this->user->lang('CLI_EXTENSION_NOT_EXIST', $name));
+			return 1;
+		}
+
 		$extension = $this->manager->get_extension($name);
 
 		if (!$extension->is_enableable())
@@ -62,7 +69,10 @@ class enable extends command
 		}
 		else
 		{
-			$io->error($this->user->lang('CLI_EXTENSION_ENABLE_FAILURE', $name));
+			$enableable = $this->manager->get_extension($name)->is_enableable();
+			$message = !empty($enableable) ? $enableable : $this->user->lang('CLI_EXTENSION_ENABLE_FAILURE');
+			$message = is_array($message) ? implode(PHP_EOL, $message) : $message;
+			$io->error($message, $name);
 			return 1;
 		}
 	}
